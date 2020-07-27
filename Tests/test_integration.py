@@ -642,7 +642,7 @@ def __create_incident_with_playbook(client, name, playbook_id, integrations, pri
     create_incident_request.name = name
 
     try:
-        response = client.create_incident(create_incident_request=create_incident_request)
+        response = client.convert_to_incident(create_incident_request=create_incident_request)
     except ApiException as err:
         prints_manager.add_print_job(str(err), print_error, thread_index)
 

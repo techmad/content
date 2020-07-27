@@ -1,0 +1,16 @@
+{
+    "name": "MailListenerV2",
+    "description": "MailListenerV2",
+    "support": "xsoar",
+    "currentVersion": "1.0.0",
+    "author": "Cortex XSOAR",
+    "url": "https://www.paloaltonetworks.com/cortex",
+    "email": "",
+    "created": "2020-07-27T14:21:48Z",
+    "categories": [
+        "Messaging"
+    ],
+    "tags": [],
+    "useCases": [],
+    "keywords": []
+}
