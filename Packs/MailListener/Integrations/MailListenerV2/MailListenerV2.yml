@@ -3,7 +3,7 @@ commonfields:
   id: Mail Listener v2
   version: -1
 configuration:
-- display: Mail server hostname or IP address
+- display: Mail Server Hostname / IP address
   name: MailServerURL
   required: true
   type: 0
@@ -15,11 +15,13 @@ configuration:
   name: incidentType
   required: false
   type: 13
-- display: IMAP port
+- display: IMAP Port
   name: port
   required: true
   type: 0
+  defaultvalue: 143
 - name: credentials
+  display: Username
   required: true
   type: 9
 - defaultvalue: INBOX
@@ -44,6 +46,7 @@ configuration:
   name: insecure
   required: false
   type: 8
+#TODO think if we want to remove
 - display: Use system proxy settings
   name: proxy
   required: false
@@ -64,6 +67,12 @@ configuration:
   name: Include_raw_body
   required: false
   type: 8
+- defaultvalue: '50'
+  display: The maximum number of incidents to fetch each time
+  hidden: false
+  name: limit
+  required: false
+  type: 0
 description: Listen to a mailbox, enable incident triggering via e-mail
 display: Mail Listener v2
 name: Mail Listener v2
@@ -78,4 +87,4 @@ script:
   subtype: python3
   type: python
 tests:
-  - No tests
+- No tests

@@ -1,22 +1,23 @@
-from typing import Dict, Any
+from datetime import timezone
+from typing import Any, Dict
 
-from imapclient import IMAPClient
+from dateparser import parse
+from mailparser import parse_from_bytes, MailParser
 from imap_tools import OR
-import mailparser
+from imapclient import IMAPClient
+
 import demistomock as demisto
 from CommonServerPython import *  # noqa: E402 lgtm [py/polluting-import]
-import dateparser
-from datetime import timezone
-
-# CONSTS
-INCLUDE_RAW_BODY = demisto.params().get('Include_raw_body', False)
-PERMITTED_FROM_ADDRESSES = demisto.params().get('permittedFromAdd', '')
-PERMITTED_FROM_DOMAINS = demisto.params().get('permittedFromDomain', '')
-DELETE_PROCESSED = demisto.params().get("delete_processed", False)
 
 
 class Email(object):
-    def __init__(self, email_object):
+    def __init__(self, email_object: MailParser, include_raw_body: bool) -> None:
+        """
+        Initialize Email class with all relevant data
+        Args:
+            email_object: The raw email object
+            include_raw_body: Whether to include the raw body of the mail in the incident's body
+        """
         self.to = [mail_addresses for _, mail_addresses in email_object.to]
         self.cc = [mail_addresses for _, mail_addresses in email_object.cc]
         self.bcc = [mail_addresses for _, mail_addresses in email_object.bcc]
@@ -27,7 +28,7 @@ class Email(object):
         self.text = email_object.text_plain[0] if email_object.text_plain else ''
         self.subject = email_object.subject
         self.headers = email_object.headers
-        self.raw_body = email_object.body if INCLUDE_RAW_BODY else None
+        self.raw_body = email_object.body if include_raw_body else None
         # According to the mailparser documentation the datetime object is in utc
         self.date = email_object.date.replace(tzinfo=timezone.utc)
         self.raw_json = self.generate_raw_json()
@@ -86,16 +87,27 @@ class Email(object):
         return raw_json
 
 
-def fetch_incidents(client,
-                    last_run,
-                    first_fetch_time):
+def fetch_incidents(client: IMAPClient,
+                    last_run: dict,
+                    first_fetch_time: str,
+                    include_raw_body: bool,
+                    permitted_from_addresses: str,
+                    permitted_from_domains: str,
+                    delete_processed: bool,
+                    limit: int
+                    ):
     """
     This function will execute each interval (default is 1 minute).
 
     Args:
-        client (Client): HelloWorld client
-        last_run (dateparser.time): The greatest incident created_time we fetched from last fetch
-        first_fetch_time (dateparser.time): If last_run is None then fetch all incidents since first_fetch_time
+        client: HelloWorld client
+        last_run: The greatest incident created_time we fetched from last fetch
+        first_fetch_time: If last_run is None then fetch all incidents since first_fetch_time
+        include_raw_body: Whether to include the raw body of the mail in the incident's body
+        permitted_from_addresses: A string representation of list of mail addresses to fetch from
+        permitted_from_domains: A string representation list of domains to fetch from
+        delete_processed: Whether to delete processed mails
+        limit: The maximum number of incidents to fetch each time
 
     Returns:
         next_run: This will be last_run in the next fetch-incidents
@@ -106,32 +118,42 @@ def fetch_incidents(client,
 
     # Handle first time fetch
     if last_fetch is None:
-        latest_created_time = dateparser.parse(f'{first_fetch_time} UTC')
+        latest_created_time = parse(f'{first_fetch_time} UTC')
     else:
         latest_created_time = datetime.fromisoformat(last_fetch)
-    messages_query = generate_search_query(latest_created_time, PERMITTED_FROM_ADDRESSES, PERMITTED_FROM_DOMAINS)
+    messages_query = generate_search_query(latest_created_time, permitted_from_addresses, permitted_from_domains)
     messages = client.search(messages_query)
-    messages = messages[:50]
+    messages = messages[:limit]
     mails_fetched = []
-    for uid, message_data in client.fetch(messages, 'RFC822').items():
+    for message_data in client.fetch(messages, 'RFC822').values():
         message_bytes = message_data.get(b'RFC822')
         if not message_bytes:
             continue
-        email_message = mailparser.parse_from_bytes(message_bytes)
+        email_message = parse_from_bytes(message_bytes)
         # The search query filters emails by day, not by exact date
-        email_message_object = Email(email_message)
+        email_message_object = Email(email_message, include_raw_body)
         if email_message_object.date > latest_created_time:
             mails_fetched.append(email_message_object)
     if mails_fetched:
         latest_created_time = max(mails_fetched, key=lambda x: x.date).date
     incidents = [mail.convert_to_incident() for mail in mails_fetched]
     next_run = {'last_fetch': latest_created_time.isoformat()}
-    if DELETE_PROCESSED:
+    if delete_processed:
         client.delete_messages(messages)
     return next_run, incidents
 
 
-def generate_search_query(latest_created_time, permitted_from_addresses, permitted_from_domains):
+def generate_search_query(latest_created_time: datetime, permitted_from_addresses: str, permitted_from_domains: str):
+    """
+
+    Args:
+        latest_created_time: The greatest incident created_time we fetched from last fetch
+        permitted_from_addresses: A string representation of list of mail addresses to fetch from
+        permitted_from_domains: A string representation list of domains to fetch from
+
+    Returns:
+
+    """
     permitted_from_addresses_list = argToList(permitted_from_addresses)
     permitted_from_domains_list = argToList(permitted_from_domains)
     messages_query = ''
@@ -146,46 +168,51 @@ def generate_search_query(latest_created_time, permitted_from_addresses, permitt
 
 
 def test_module(client: IMAPClient) -> str:
-    client.search()
+    yesterday = parse('1 day UTC')
+    client.search(['SINCE', yesterday])
     return 'ok'
 
 
 def main():
-    """
-        PARSE AND VALIDATE INTEGRATION PARAMS
-    """
     params = demisto.params()
     mail_server_url = params.get('MailServerURL')
     port = int(params.get('port'))
     folder = params.get('folder')
     username = demisto.params().get('credentials').get('identifier')
     password = demisto.params().get('credentials').get('password')
-    verify_ssl = not params.get("insecure", False)
+    verify_ssl = not params.get('insecure', False)
+    include_raw_body = demisto.params().get('Include_raw_body', False)
+    permitted_from_addresses = demisto.params().get('permittedFromAdd', '')
+    permitted_from_domains = demisto.params().get('permittedFromDomain', '')
+    delete_processed = demisto.params().get("delete_processed", False)
+    limit = int(demisto.params().get('limit', '50'))
 
     first_fetch_time = demisto.params().get('fetch_time', '3 days').strip()
 
     LOG(f'Command being called is {demisto.command()}')
     try:
-        with IMAPClient(mail_server_url, ssl=verify_ssl, timeout=20, port=port) as client:
+        with IMAPClient(mail_server_url, ssl=verify_ssl, port=port) as client:
             client.login(username, password)
             client.select_folder(folder)
             if demisto.command() == 'test-module':
-                # This is the call made when pressing the integration Test button.
                 result = test_module(client)
                 demisto.results(result)
 
             elif demisto.command() == 'fetch-incidents':
-                # Set and define the fetch incidents command to run after activated via integration settings.
                 next_run, incidents = fetch_incidents(
                     client=client,
                     last_run=demisto.getLastRun(),
-                    first_fetch_time=first_fetch_time)
+                    first_fetch_time=first_fetch_time,
+                    include_raw_body=include_raw_body,
+                    permitted_from_addresses=permitted_from_addresses,
+                    permitted_from_domains=permitted_from_domains,
+                    delete_processed=delete_processed,
+                    limit=limit
+                )
 
                 demisto.setLastRun(next_run)
                 demisto.incidents(incidents)
-    # Log exceptions
     except Exception as e:
-        LOG(e)
         return_error(f'Failed to execute {demisto.command()} command. Error: {str(e)}')
 
 
