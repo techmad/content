@@ -77,7 +77,7 @@ description: Listen to a mailbox, enable incident triggering via e-mail
 display: Mail Listener v2
 name: Mail Listener v2
 script:
-  dockerimage: devtesting/mail_listener:1.0.0.1596109394
+  dockerimage: demisto/imap:1.0.0.10292
   feed: false
   isfetch: true
   longRunning: false
