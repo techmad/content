@@ -1,5 +1,5 @@
 {
-    "name": "MailListenerV2",
+    "name": "Mail Listener",
     "description": "Listen to a mailbox, enable incident triggering via e-mail",
     "support": "xsoar",
     "currentVersion": "1.0.0",

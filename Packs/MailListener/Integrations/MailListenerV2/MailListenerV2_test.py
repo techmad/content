@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Message(object):
@@ -37,3 +37,23 @@ def test_convert_to_incident():
     assert incident['occurred'] == email.date.isoformat()
     assert incident['details'] == email.text
     assert incident['name'] == email.subject
+
+
+def test_generate_search_query():
+    from MailListenerV2 import generate_search_query
+    now = datetime.now(timezone.utc)
+    permitted_from_addresses = ['test1@mail.com', 'test2@mail.com']
+    permitted_from_domains = ['test1.com', 'domain2.com']
+    assert generate_search_query(now, permitted_from_addresses, permitted_from_domains) == ['OR',
+                                                                                            'OR',
+                                                                                            'OR',
+                                                                                            'FROM',
+                                                                                            'test1@mail.com',
+                                                                                            'FROM',
+                                                                                            'test2@mail.com',
+                                                                                            'FROM',
+                                                                                            'test1.com',
+                                                                                            'FROM',
+                                                                                            'domain2.com',
+                                                                                            'SINCE',
+                                                                                            now]

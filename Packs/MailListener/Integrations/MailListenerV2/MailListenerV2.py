@@ -1,5 +1,5 @@
 from datetime import timezone
-from typing import Any, Dict
+from typing import Any, Dict, Tuple, List
 
 from dateparser import parse
 from mailparser import parse_from_bytes, MailParser
@@ -46,7 +46,6 @@ class Email(object):
             # check for error
             if file_result['Type'] == entryTypes['error']:
                 demisto.error(file_result['Contents'])
-                raise Exception(file_result['Contents'])
 
             file_names.append({
                 'path': file_result['FileID'],
@@ -95,12 +94,12 @@ def fetch_incidents(client: IMAPClient,
                     permitted_from_domains: str,
                     delete_processed: bool,
                     limit: int
-                    ):
+                    ) -> Tuple[dict, list]:
     """
     This function will execute each interval (default is 1 minute).
 
     Args:
-        client: HelloWorld client
+        client: IMAP client
         last_run: The greatest incident created_time we fetched from last fetch
         first_fetch_time: If last_run is None then fetch all incidents since first_fetch_time
         include_raw_body: Whether to include the raw body of the mail in the incident's body
@@ -143,16 +142,37 @@ def fetch_incidents(client: IMAPClient,
     return next_run, incidents
 
 
-def generate_search_query(latest_created_time: datetime, permitted_from_addresses: str, permitted_from_domains: str):
+def generate_search_query(latest_created_time: datetime,
+                          permitted_from_addresses: str,
+                          permitted_from_domains: str) -> List:
     """
-
+    Generates a search query for the IMAP client 'search' method. with the permitted domains, email addresses and the
+    starting date from which mail should be fetched.
+    Input example:
+    latest_created_time: datetime.datetime(2020, 8, 7, 12, 14, 32, 918634, tzinfo=datetime.timezone.utc)
+    permitted_from_addresses: ['test1@mail.com', 'test2@mail.com']
+    permitted_from_domains: ['test1.com', 'domain2.com']
+    output example:
+    ['OR',
+     'OR',
+     'OR',
+     'FROM',
+     'test1@mail.com',
+     'FROM',
+     'test2@mail.com',
+     'FROM',
+     'test1.com',
+     'FROM',
+     'domain2.com',
+     'SINCE',
+     datetime.datetime(2020, 8, 7, 12, 14, 32, 918634, tzinfo=datetime.timezone.utc)]
     Args:
         latest_created_time: The greatest incident created_time we fetched from last fetch
         permitted_from_addresses: A string representation of list of mail addresses to fetch from
         permitted_from_domains: A string representation list of domains to fetch from
 
     Returns:
-
+        A list with arguments for the email search query
     """
     permitted_from_addresses_list = argToList(permitted_from_addresses)
     permitted_from_domains_list = argToList(permitted_from_domains)

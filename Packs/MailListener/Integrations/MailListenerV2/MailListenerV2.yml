@@ -42,15 +42,6 @@ configuration:
   name: first_fetch
   required: false
   type: 0
-- display: Trust any certificate (not secure)
-  name: insecure
-  required: false
-  type: 8
-#TODO think if we want to remove
-- display: Use system proxy settings
-  name: proxy
-  required: false
-  type: 8
 - defaultvalue: 'true'
   display: Filter by SINCE date for IMAP that supports it. Lotus Notes does not by
     default.
@@ -73,6 +64,15 @@ configuration:
   name: limit
   required: false
   type: 0
+- display: Trust any certificate (not secure)
+  name: insecure
+  required: false
+  type: 8
+#TODO think if we want to remove
+- display: Use system proxy settings
+  name: proxy
+  required: false
+  type: 8
 description: Listen to a mailbox, enable incident triggering via e-mail
 display: Mail Listener v2
 name: Mail Listener v2
