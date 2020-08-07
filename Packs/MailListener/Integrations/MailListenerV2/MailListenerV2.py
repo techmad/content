@@ -1,5 +1,5 @@
 from datetime import timezone
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Tuple
 
 from dateparser import parse
 from mailparser import parse_from_bytes, MailParser
@@ -7,7 +7,7 @@ from imap_tools import OR
 from imapclient import IMAPClient
 
 import demistomock as demisto
-from CommonServerPython import *  # noqa: E402 lgtm [py/polluting-import]
+from CommonServerPython import *
 
 
 class Email(object):
@@ -144,7 +144,7 @@ def fetch_incidents(client: IMAPClient,
 
 def generate_search_query(latest_created_time: datetime,
                           permitted_from_addresses: str,
-                          permitted_from_domains: str) -> List:
+                          permitted_from_domains: str) -> list:
     """
     Generates a search query for the IMAP client 'search' method. with the permitted domains, email addresses and the
     starting date from which mail should be fetched.
@@ -181,10 +181,9 @@ def generate_search_query(latest_created_time: datetime,
         messages_query = OR(from_=permitted_from_addresses_list + permitted_from_domains_list).format()
         # Removing Parenthesis and quotes
         messages_query = messages_query.strip('()').replace('"', '')
-        # Creating a list of the OR query words
-    messages_query = messages_query.split()
-    messages_query = messages_query + ['SINCE', latest_created_time]
-    return messages_query
+    # Creating a list of the OR query words
+    messages_query_list = messages_query.split() + ['SINCE', latest_created_time]  # type: ignore[list-item]
+    return messages_query_list
 
 
 def test_module(client: IMAPClient) -> str:

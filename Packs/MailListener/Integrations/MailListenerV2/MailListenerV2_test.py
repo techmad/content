@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+from typing import cast
+
+from mailparser import MailParser
 
 
 class Message(object):
@@ -31,7 +34,9 @@ class MailObject(object):
 
 def test_convert_to_incident():
     from MailListenerV2 import Email
-    email = Email(MailObject)
+    mail_object = MailObject()
+    cast(MailParser, mail_object)
+    email = Email(mail_object, False)
     incident = email.convert_to_incident()
     assert incident['attachment'] == []
     assert incident['occurred'] == email.date.isoformat()
