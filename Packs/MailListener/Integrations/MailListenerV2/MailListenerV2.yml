@@ -73,7 +73,7 @@ configuration:
   name: proxy
   required: false
   type: 8
-description: Listen to a mailbox, enable incident triggering via e-mail
+description: Listens to a mailbox and enables incident triggering via e-mail.
 display: Mail Listener v2
 name: Mail Listener v2
 script:
