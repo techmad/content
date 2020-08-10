@@ -77,7 +77,7 @@ class Email(object):
             'text': self.text,
             'subject': self.subject,
             'attachments': ','.join([attachment['filename'] for attachment in self.attachments]),
-            'rawHeaders': self.headers
+            'rawHeaders': json.dumps(self.headers)
         }
         if self.html:
             raw_json['html'] = self.html
