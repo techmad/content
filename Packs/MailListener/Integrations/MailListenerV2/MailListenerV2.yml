@@ -15,13 +15,13 @@ configuration:
   name: incidentType
   required: false
   type: 13
-- display: IMAP Port
+- defaultvalue: '143'
+  display: IMAP Port
   name: port
   required: true
   type: 0
-  defaultvalue: 143
-- name: credentials
-  display: Username
+- display: Username
+  name: credentials
   required: true
   type: 9
 - defaultvalue: INBOX
@@ -29,17 +29,22 @@ configuration:
   name: folder
   required: true
   type: 0
-- display: Forward mails from these senders addresses only (eg. admin@demo.com,test@demo.com)
+- display: Fetch mails from these senders addresses only (eg. admin@demo.com,test@demo.com)
   name: permittedFromAdd
   required: false
   type: 0
-- display: Forward mails from these domains only (eg. demo.com, test.com)
+- display: Fetch mails from these domains only (eg. demo.com, test.com)
   name: permittedFromDomain
   required: false
   type: 0
 - defaultvalue: 3 days
   display: First fetch time
   name: first_fetch
+  required: false
+  type: 0
+- defaultvalue: '50'
+  display: The maximum number of incidents to fetch each time
+  name: limit
   required: false
   type: 0
 - defaultvalue: 'true'
@@ -49,34 +54,50 @@ configuration:
   required: false
   type: 8
 - display: Delete processed emails
-  hidden: false
   name: delete_processed
   required: false
   type: 8
 - display: Include raw body in incidents
-  hidden: false
   name: Include_raw_body
   required: false
   type: 8
-- defaultvalue: '50'
-  display: The maximum number of incidents to fetch each time
-  hidden: false
-  name: limit
-  required: false
-  type: 0
-- display: Trust any certificate (not secure)
-  name: insecure
+- display: Save the email .eml file
+  name: save_file
   required: false
   type: 8
-#TODO think if we want to remove
-- display: Use system proxy settings
-  name: proxy
+- display: Use TLS for connection (defaults to True)
+  name: TLS_connection
+  required: false
+  type: 8
+- display: Trust any certificate (not secure)
+  name: insecure
   required: false
   type: 8
 description: Listens to a mailbox and enables incident triggering via e-mail.
 display: Mail Listener v2
 name: Mail Listener v2
 script:
+  commands:
+  - deprecated: false
+    description: Fetches mail according to the configuration
+    execution: false
+    name: mail-listener-list-messages
+    outputs:
+    - contextPath: MailListener.Email.Subject
+      description: The subject of the mail
+      type: String
+    - contextPath: MailListener.Email.Date
+      description: The date when the mail was recived
+      type: Date
+    - contextPath: MailListener.Email.To
+      description: The recipient of the mail
+      type: String
+    - contextPath: MailListener.Email.From
+      description: The sender of the mail
+      type: String
+    - contextPath: MailListener.Email.ID
+      description: The ID of the mail
+      type: string
   dockerimage: demisto/imap:1.0.0.10461
   feed: false
   isfetch: true
@@ -88,5 +109,5 @@ script:
   type: python
 tests:
 - No tests
-defaultclassifier: mail-listener
 defaultmapperin: mail-listener-mapper
+defaultclassifier: mail-listener
