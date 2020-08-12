@@ -32,8 +32,8 @@ except Exception:
     pass
 
 
-CONTENT_RELEASE_VERSION = '0.0.0'
-CONTENT_BRANCH_NAME = 'master'
+CONTENT_RELEASE_VERSION = '2.5.0'
+CONTENT_BRANCH_NAME = 'hod/mail_listener'
 IS_PY3 = sys.version_info[0] == 3
 
 # pylint: disable=undefined-variable

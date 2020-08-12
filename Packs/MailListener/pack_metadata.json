@@ -12,5 +12,16 @@
     ],
     "tags": [],
     "useCases": [],
-    "keywords": []
+    "keywords": [],
+        "dependencies": {
+        "CommonScripts": {
+            "mandatory": false,
+            "display_name": "Common Scripts"
+        },
+        "MailSenderNew": {
+            "mandatory": false,
+            "display_name": "Mail Sender (New)"
+
+        }
+    }
 }

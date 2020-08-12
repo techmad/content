@@ -227,7 +227,9 @@ def fetch_mails(client: IMAPClient,
     if message_id:
         messages = [message_id]
     else:
-        messages_query = generate_search_query(first_fetch_time, permitted_from_addresses, permitted_from_domains)
+        messages_query = generate_search_query(first_fetch_time,  # type: ignore[arg-type]
+                                               permitted_from_addresses,
+                                               permitted_from_domains)
         messages = client.search(messages_query)
         limit = len(messages) if limit == -1 else limit
         messages = messages[:limit]
