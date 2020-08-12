@@ -47,12 +47,6 @@ configuration:
   name: limit
   required: false
   type: 0
-- defaultvalue: 'true'
-  display: Filter by SINCE date for IMAP that supports it. Lotus Notes does not by
-    default.
-  name: filterByDate
-  required: false
-  type: 8
 - display: Delete processed emails
   name: delete_processed
   required: false
@@ -83,21 +77,74 @@ script:
     execution: false
     name: mail-listener-list-messages
     outputs:
-    - contextPath: MailListener.Email.Subject
+    - contextPath: MailListener.EmailPreview.Subject
       description: The subject of the mail
       type: String
-    - contextPath: MailListener.Email.Date
+    - contextPath: MailListener.EmailPreview.Date
       description: The date when the mail was recived
       type: Date
-    - contextPath: MailListener.Email.To
+    - contextPath: MailListener.EmailPreview.To
       description: The recipient of the mail
       type: String
-    - contextPath: MailListener.Email.From
+    - contextPath: MailListener.EmailPreview.From
       description: The sender of the mail
       type: String
-    - contextPath: MailListener.Email.ID
+    - contextPath: MailListener.EmailPreview.ID
       description: The ID of the mail
       type: string
+  - arguments:
+    - default: false
+      description: Message ID as fetched in 'mail-listener-list-messages' command
+      isArray: false
+      name: message-id
+      required: true
+      secret: false
+    deprecated: false
+    description: Fetches an email by email ID
+    execution: false
+    name: mail-listener-get-email
+    outputs:
+    - contextPath: MailListener.Email.to
+      description: The recipients of the mail
+      type: String
+    - contextPath: MailListener.Email.cc
+      description: The mail's cc
+      type: String
+    - contextPath: MailListener.Email.bcc
+      description: The mail's bcc
+      type: String
+    - contextPath: MailListener.Email.from
+      description: The sender of the mail
+      type: String
+    - contextPath: MailListener.Email.format
+      description: The format of the mail
+      type: String
+    - contextPath: MailListener.Email.text
+      description: The plain text of the mail
+      type: String
+    - contextPath: MailListener.Email.HTML
+      description: The HTML display of the mail if exists
+      type: String
+    - contextPath: MailListener.Email.subject
+      description: The subject of the mail
+      type: String
+    - contextPath: MailListener.Email.attachments
+      description: The attachments of the mail if exists
+      type: String
+    - contextPath: MailListener.Email.headers
+      description: The headers of the mail
+      type: String
+  - arguments:
+    - default: false
+      description: Message ID as fetched in 'mail-listener-list-messages' command
+      isArray: false
+      name: message-id
+      required: true
+      secret: false
+    deprecated: false
+    description: Fetches an email by message ID and download it's eml file
+    execution: false
+    name: mail-listener-get-email-as-eml
   dockerimage: demisto/imap:1.0.0.10461
   feed: false
   isfetch: true
@@ -111,3 +158,4 @@ tests:
 - No tests
 defaultmapperin: mail-listener-mapper
 defaultclassifier: mail-listener
+fromversion: 5.0.0

@@ -3,7 +3,7 @@ from datetime import timezone
 from typing import Any, Dict, Tuple, List
 
 from dateparser import parse
-from mailparser import parse_from_bytes, MailParser
+from mailparser import parse_from_bytes
 from imap_tools import OR
 from imapclient import IMAPClient
 
@@ -12,15 +12,17 @@ from CommonServerPython import *
 
 
 class Email(object):
-    def __init__(self, message_bytes: bytes, include_raw_body: bool, save_file: bool) -> None:
+    def __init__(self, message_bytes: bytes, include_raw_body: bool, save_file: bool, id_: int) -> None:
         """
         Initialize Email class with all relevant data
         Args:
+            id_: The unique ID with which the email can be fetched from the server specifically
             message_bytes: The raw email bytes
             include_raw_body: Whether to include the raw body of the mail in the incident's body
             save_file: Whether to save the .eml file of the incident's mail
         """
         email_object = parse_from_bytes(message_bytes)
+        self.id = id_
         self.mail_bytes = message_bytes
         self.to = [mail_addresses for _, mail_addresses in email_object.to]
         self.cc = [mail_addresses for _, mail_addresses in email_object.cc]
@@ -46,7 +48,7 @@ class Email(object):
             A list of dicts with the form {type: <label name>, value: <label-value>}
         """
         labels = [{'type': 'Email/headers', 'value': json.dumps(self.headers)},
-                  {'type': 'Email/from', 'value': ','.join(self.from_)},
+                  {'type': 'Email/from', 'value': self.from_},
                   {'type': 'Email/format', 'value': self.format},
                   {'type': 'Email/text', 'value': self.text},
                   {'type': 'Email/subject', 'value': self.subject},
@@ -66,7 +68,7 @@ class Email(object):
         return labels
 
     def parse_attachments(self):
-        file_names = []
+        files = []
         for attachment in self.attachments:
             payload = attachment.get('payload')
 
@@ -79,17 +81,17 @@ class Email(object):
             if file_result['Type'] == entryTypes['error']:
                 demisto.error(file_result['Contents'])
 
-            file_names.append({
+            files.append({
                 'path': file_result['FileID'],
                 'name': file_result['File']
             })
         if self.save_eml_file:
             file_result = fileResult('original-email-file.eml', self.mail_bytes)
-            file_names.append({
+            files.append({
                 'path': file_result['FileID'],
                 'name': file_result['File']
             })
-        return file_names
+        return files
 
     def convert_to_incident(self) -> Dict[str, Any]:
         """
@@ -107,16 +109,23 @@ class Email(object):
             'rawJSON': json.dumps(self.raw_json)
         }
 
-    def generate_raw_json(self):
+    def generate_raw_json(self, parse_attachments: bool = False):
+        """
+
+        Args:
+            parse_attachments: whether to parse the attachments and write them to files
+            during the execution of this method or not.
+        """
         raw_json = {
-            'to': self.to,
-            'cc': self.cc,
-            'bcc': self.bcc,
+            'to': ','.join(self.to),
+            'cc': ','.join(self.cc),
+            'bcc': ','.join(self.bcc),
             'from': self.from_,
             'format': self.format,
             'text': self.text,
             'subject': self.subject,
-            'attachments': ','.join([attachment['filename'] for attachment in self.attachments]),
+            'attachments': self.parse_attachments() if parse_attachments else ','.join(
+                [attachment['filename'] for attachment in self.attachments]),
             'rawHeaders': self.parse_raw_headers(),
             'headers': remove_empty_elements(self.headers)
         }
@@ -190,12 +199,13 @@ def fetch_incidents(client: IMAPClient,
 
 
 def fetch_mails(client: IMAPClient,
-                first_fetch_time: datetime,
-                permitted_from_addresses: str,
-                permitted_from_domains: str,
+                first_fetch_time: datetime = None,
+                permitted_from_addresses: str = '',
+                permitted_from_domains: str = '',
                 include_raw_body: bool = False,
                 limit: int = -1,
-                save_file: bool = False):
+                save_file: bool = False,
+                message_id: int = None):
     """
     This function will fetch the mails from the imap servers.
 
@@ -205,25 +215,30 @@ def fetch_mails(client: IMAPClient,
         include_raw_body: Whether to include the raw body of the mail in the incident's body
         permitted_from_addresses: A string representation of list of mail addresses to fetch from
         permitted_from_domains: A string representation list of domains to fetch from
-        limit: The maximum number of incidents to fetch each time, if the value is -1 all mails will be fetched (used with list-messages command)
+        limit: The maximum number of incidents to fetch each time, if the value is -1 all
+               mails will be fetched (used with list-messages command)
         save_file: Whether to save the .eml file of the incident's mail
+        message_id: A unique message ID with which a specific mail can be fetched
 
     Returns:
         mails_fetched: A list of Email objects
         messages: A list of the ids of the messages fetched
     """
-    messages_query = generate_search_query(first_fetch_time, permitted_from_addresses, permitted_from_domains)
-    messages = client.search(messages_query)
-    limit = len(messages) if limit == -1 else limit
-    messages = messages[:limit]
+    if message_id:
+        messages = [message_id]
+    else:
+        messages_query = generate_search_query(first_fetch_time, permitted_from_addresses, permitted_from_domains)
+        messages = client.search(messages_query)
+        limit = len(messages) if limit == -1 else limit
+        messages = messages[:limit]
     mails_fetched = []
-    for message_data in client.fetch(messages, 'RFC822').values():
+    for mail_id, message_data in client.fetch(messages, 'RFC822').items():
         message_bytes = message_data.get(b'RFC822')
         if not message_bytes:
             continue
         # The search query filters emails by day, not by exact date
-        email_message_object = Email(message_bytes, include_raw_body, save_file)
-        if email_message_object.date > first_fetch_time:
+        email_message_object = Email(message_bytes, include_raw_body, save_file, mail_id)
+        if not first_fetch_time or email_message_object.date > first_fetch_time:
             mails_fetched.append(email_message_object)
     return mails_fetched, messages
 
@@ -289,11 +304,25 @@ def list_messages(client, first_fetch_time, permitted_from_addresses, permitted_
                 'Date': email.date.isoformat(),
                 'To': email.to,
                 'From': email.from_,
-                'ID': email.headers.get('Message-ID')} for email in mails_fetched]
+                'ID': email.id} for email in mails_fetched]
 
-    return CommandResults(outputs_prefix='MailListener.Email',
+    return CommandResults(outputs_prefix='MailListener.EmailPreview',
                           outputs_key_field='ID',
                           outputs=results)
+
+
+def get_email(client, message_id):
+    mails_fetched, _ = fetch_mails(client, message_id=message_id)
+    mails_json = [mail.generate_raw_json(parse_attachments=True) for mail in mails_fetched]
+    return CommandResults(outputs_prefix='MailListener.Email',
+                          outputs_key_field='ID',
+                          outputs=mails_json)
+
+
+def get_email_as_eml(client, message_id):
+    mails_fetched, _ = fetch_mails(client, message_id=message_id)
+    mail_file = [fileResult('original-email-file.eml', mail.mail_bytes) for mail in mails_fetched]
+    return mail_file[0] if mail_file else {}
 
 
 def main():
@@ -311,8 +340,10 @@ def main():
     delete_processed = demisto.params().get("delete_processed", False)
     limit = int(demisto.params().get('limit', '50'))
     save_file = params.get('save_file', False)
-    first_fetch_time = demisto.params().get('fetch_time', '3 days').strip()
+    first_fetch_time = demisto.params().get('first_fetch', '3 days').strip()
     ssl_context = ssl.create_default_context()
+
+    args = demisto.args()
     if not verify_ssl:
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
@@ -329,6 +360,12 @@ def main():
                                              first_fetch_time=first_fetch_time,
                                              permitted_from_addresses=permitted_from_addresses,
                                              permitted_from_domains=permitted_from_domains))
+            elif demisto.command() == 'mail-listener-get-email':
+                return_results(get_email(client=client,
+                                         message_id=args.get('message-id')))
+            elif demisto.command() == 'mail-listener-get-email-as-eml':
+                return_results(get_email_as_eml(client=client,
+                                                message_id=args.get('message-id')))
             elif demisto.command() == 'fetch-incidents':
                 next_run, incidents = fetch_incidents(client=client, last_run=demisto.getLastRun(),
                                                       first_fetch_time=first_fetch_time,

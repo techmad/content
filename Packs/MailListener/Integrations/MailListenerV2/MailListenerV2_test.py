@@ -1,7 +1,4 @@
 from datetime import datetime, timezone
-from typing import cast
-
-from mailparser import MailParser
 
 
 class Message(object):
@@ -10,37 +7,51 @@ class Message(object):
         return 'multipart/alternative'
 
 
-class MailObject(object):
-    to = [('to mail 1', 'to@test1.com'), ('to mail 2', 'to@test2.com')]
-    cc = [('cc mail 1', 'cc@test1.com')]
-    bcc = []
-    attachments = []
-    from_ = [('from mail 1', 'from@test1.com')]
-    text_html = ['html_text']
-    text_plain = ['text_plain']
-    subject = 'the mail subject'
-    headers = {
-        "Content-Type": "multipart/alternative; boundary=\"000000000000d30c9205abe4e97e\"",
-        "Date": "Sun, 2 Aug 2020 16:22:16 +0300",
-        "Delivered-To": "to@test1.com",
-        "From": "from@test1.com",
-        "MIME-Version": "1.0",
-        "To": "to@test1.com",
-    }
-    body = 'body text'
-    date = datetime.fromisoformat('2020-08-02T13:45:45.408520+00:00')
-    message = Message
+MAIL_STRING = """Delivered-To: to@test1.com
+MIME-Version: 1.0
+From: John Smith <from@test1.com>
+Date: Mon, 10 Aug 2020 10:17:16 +0300
+Subject: Testing email for mail listener
+To: to@test1.com
+Content-Type: multipart/alternative; boundary="0000000000002b271405ac80bf8b"
+
+
+--0000000000002b271405ac80bf8b
+Content-Type: text/plain; charset="UTF-8"
+
+
+
+--0000000000002b271405ac80bf8b
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr"><br></div>
+
+--0000000000002b271405ac80bf8b--
+"""
+
+EXPECTED_LABELS = [
+    {'type': 'Email/from', 'value': 'from@test1.com'},
+    {'type': 'Email/format', 'value': 'multipart/alternative'}, {'type': 'Email/text', 'value': ''},
+    {'type': 'Email/subject', 'value': 'Testing email for mail listener'},
+    {'type': 'Email/headers/Delivered-To', 'value': 'to@test1.com'},
+    {'type': 'Email/headers/MIME-Version', 'value': '1.0'},
+    {'type': 'Email/headers/From', 'value': 'John Smith <from@test1.com>'},
+    {'type': 'Email/headers/Date', 'value': 'Mon, 10 Aug 2020 10:17:16 +0300'},
+    {'type': 'Email/headers/Subject', 'value': 'Testing email for mail listener'},
+    {'type': 'Email/headers/To', 'value': 'to@test1.com'},
+    {'type': 'Email/headers/Content-Type',
+     'value': 'multipart/alternative; boundary="0000000000002b271405ac80bf8b"'},
+    {'type': 'Email', 'value': 'to@test1.com'},
+    {'type': 'Email/html', 'value': '<div dir="ltr"><br></div>'}]
 
 
 def test_convert_to_incident():
     from MailListenerV2 import Email
-    mail_object = MailObject()
-    cast(MailParser, mail_object)
-    email = Email(mail_object, False)
+    email = Email(MAIL_STRING.encode(), False, False, 0)
     incident = email.convert_to_incident()
     assert incident['attachment'] == []
     assert incident['occurred'] == email.date.isoformat()
-    assert incident['details'] == email.text
+    assert incident['details'] == email.text or email.html
     assert incident['name'] == email.subject
 
 
@@ -62,3 +73,11 @@ def test_generate_search_query():
                                                                                             'domain2.com',
                                                                                             'SINCE',
                                                                                             now]
+
+
+def test_generate_labels():
+    from MailListenerV2 import Email
+    email = Email(MAIL_STRING.encode(), False, False, 0)
+    labels = email._generate_labels()
+    for label in EXPECTED_LABELS:
+        assert label in labels
