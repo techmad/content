@@ -1,6 +1,6 @@
 import ssl
 from datetime import timezone
-from typing import Any, Dict, Tuple, List
+from typing import Any, Dict, Tuple, List, Optional
 
 from dateparser import parse
 from mailparser import parse_from_bytes
@@ -67,7 +67,13 @@ class Email(object):
                            'value': ','.join([attachment['filename'] for attachment in self.attachments])})
         return labels
 
-    def parse_attachments(self):
+    def parse_attachments(self) -> list:
+        """
+        Writes the attachments of the files and returns a list of file entry details.
+        If self.save_eml_file is set, will also save the email itself as file
+        Returns:
+            A list of the written files entries
+        """
         files = []
         for attachment in self.attachments:
             payload = attachment.get('payload')
@@ -109,7 +115,7 @@ class Email(object):
             'rawJSON': json.dumps(self.raw_json)
         }
 
-    def generate_raw_json(self, parse_attachments: bool = False):
+    def generate_raw_json(self, parse_attachments: bool = False) -> dict:
         """
 
         Args:
@@ -205,9 +211,9 @@ def fetch_mails(client: IMAPClient,
                 include_raw_body: bool = False,
                 limit: int = -1,
                 save_file: bool = False,
-                message_id: int = None):
+                message_id: int = None) -> Tuple[list, list]:
     """
-    This function will fetch the mails from the imap servers.
+    This function will fetch the mails from the IMAP server.
 
     Args:
         client: IMAP client
@@ -227,7 +233,7 @@ def fetch_mails(client: IMAPClient,
     if message_id:
         messages = [message_id]
     else:
-        messages_query = generate_search_query(first_fetch_time,  # type: ignore[arg-type]
+        messages_query = generate_search_query(first_fetch_time,
                                                permitted_from_addresses,
                                                permitted_from_domains)
         messages = client.search(messages_query)
@@ -245,7 +251,7 @@ def fetch_mails(client: IMAPClient,
     return mails_fetched, messages
 
 
-def generate_search_query(latest_created_time: datetime,
+def generate_search_query(latest_created_time: Optional[datetime],
                           permitted_from_addresses: str,
                           permitted_from_domains: str) -> list:
     """
@@ -295,7 +301,22 @@ def test_module(client: IMAPClient) -> str:
     return 'ok'
 
 
-def list_messages(client, first_fetch_time, permitted_from_addresses, permitted_from_domains):
+def list_emails(client: IMAPClient,
+                first_fetch_time: str,
+                permitted_from_addresses: str,
+                permitted_from_domains: str) -> CommandResults:
+
+    """
+    Lists all emails that can be fetched with the given configuration and return a preview version of them.
+    Args:
+        client: IMAP client
+        first_fetch_time: Fetch all incidents since first_fetch_time
+        permitted_from_addresses: A string representation of list of mail addresses to fetch from
+        permitted_from_domains: A string representation list of domains to fetch from
+
+    Returns:
+        The Subject, Date, To, From and ID of the fetched mails wrapped in command results object.
+    """
     fetch_time = parse(f'{first_fetch_time} UTC')
 
     mails_fetched, _ = fetch_mails(client=client,
@@ -313,7 +334,7 @@ def list_messages(client, first_fetch_time, permitted_from_addresses, permitted_
                           outputs=results)
 
 
-def get_email(client, message_id):
+def get_email(client: IMAPClient, message_id: int) -> CommandResults:
     mails_fetched, _ = fetch_mails(client, message_id=message_id)
     mails_json = [mail.generate_raw_json(parse_attachments=True) for mail in mails_fetched]
     return CommandResults(outputs_prefix='MailListener.Email',
@@ -321,7 +342,7 @@ def get_email(client, message_id):
                           outputs=mails_json)
 
 
-def get_email_as_eml(client, message_id):
+def get_email_as_eml(client: IMAPClient, message_id: int) -> dict:
     mails_fetched, _ = fetch_mails(client, message_id=message_id)
     mail_file = [fileResult('original-email-file.eml', mail.mail_bytes) for mail in mails_fetched]
     return mail_file[0] if mail_file else {}
@@ -335,7 +356,7 @@ def main():
     username = demisto.params().get('credentials').get('identifier')
     password = demisto.params().get('credentials').get('password')
     verify_ssl = not params.get('insecure', False)
-    TLS_connection = params.get('TLS_connection', True)
+    tls_connection = params.get('TLS_connection', True)
     include_raw_body = demisto.params().get('Include_raw_body', False)
     permitted_from_addresses = demisto.params().get('permittedFromAdd', '')
     permitted_from_domains = demisto.params().get('permittedFromDomain', '')
@@ -351,17 +372,17 @@ def main():
         ssl_context.verify_mode = ssl.CERT_NONE
     LOG(f'Command being called is {demisto.command()}')
     try:
-        with IMAPClient(mail_server_url, ssl=TLS_connection, port=port, ssl_context=ssl_context) as client:
+        with IMAPClient(mail_server_url, ssl=tls_connection, port=port, ssl_context=ssl_context) as client:
             client.login(username, password)
             client.select_folder(folder)
             if demisto.command() == 'test-module':
                 result = test_module(client)
                 demisto.results(result)
-            elif demisto.command() == 'mail-listener-list-messages':
-                return_results(list_messages(client=client,
-                                             first_fetch_time=first_fetch_time,
-                                             permitted_from_addresses=permitted_from_addresses,
-                                             permitted_from_domains=permitted_from_domains))
+            elif demisto.command() == 'mail-listener-list-emails':
+                return_results(list_emails(client=client,
+                                           first_fetch_time=first_fetch_time,
+                                           permitted_from_addresses=permitted_from_addresses,
+                                           permitted_from_domains=permitted_from_domains))
             elif demisto.command() == 'mail-listener-get-email':
                 return_results(get_email(client=client,
                                          message_id=args.get('message-id')))

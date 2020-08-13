@@ -76,7 +76,7 @@ script:
   - deprecated: false
     description: Fetches mails according to the configuration
     execution: false
-    name: mail-listener-list-messages
+    name: mail-listener-list-emails
     outputs:
     - contextPath: MailListener.EmailPreview.Subject
       description: The subject of the mail
@@ -95,7 +95,7 @@ script:
       type: string
   - arguments:
     - default: false
-      description: Message ID as fetched in 'mail-listener-list-messages' command
+      description: Message ID as fetched in 'mail-listener-list-emails' command
       isArray: false
       name: message-id
       required: true
@@ -137,7 +137,7 @@ script:
       type: String
   - arguments:
     - default: false
-      description: Message ID as fetched in 'mail-listener-list-messages' command
+      description: Message ID as fetched in 'mail-listener-list-emails' command
       isArray: false
       name: message-id
       required: true
@@ -146,7 +146,7 @@ script:
     description: Fetches an email by message ID and download it's eml file
     execution: false
     name: mail-listener-get-email-as-eml
-  dockerimage: demisto/imap:1.0.0.10461
+  dockerimage: demisto/imap:1.0.0.10664
   feed: false
   isfetch: true
   longRunning: false

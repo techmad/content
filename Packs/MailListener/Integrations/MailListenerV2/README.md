@@ -5,12 +5,12 @@ Listens to a mailbox and enables incident triggering via e-mail.
 
 ---
 
-## Configure MAil Listener v2 on XSOAR
+## Configure Mail Listener v2 on XSOAR
 
 ---
 
 1. Navigate to __Settings__ > __Integrations__ > __Servers & Services__.
-2. Search for Mail Listener v2.
+2. Search for Mail Listener v2. 
 3. Click __Add instance__ to create and configure a new integration instance.
     * __Name__: a textual name for the integration instance.
     * __Fetch incidents__: Whether to fetch incidents or not
@@ -19,7 +19,7 @@ Listens to a mailbox and enables incident triggering via e-mail.
     * __credentials__: Username and password
     * __folder__: Incoming mail folder
     * __permittedFromAdd__: Fetch mails from these senders addresses only (eg. admin@demo.com,test@demo.com)
-    * __first_fetch__: First fetch time (<number> <time unit>, e.g., 12 hours, 7 days, 3 months, 1 year)
+    * __first_fetch__: First fetch time (\<number\> \<time unit\>, e.g., 12 hours, 7 days, 3 months, 1 year)
     * __limit__: The maximum number of incidents to fetch each time
     * __delete_processed__: Delete processed emails
     * __Include_raw_body__: Include raw body in incidents
@@ -31,17 +31,17 @@ Listens to a mailbox and enables incident triggering via e-mail.
 
 ## Commands:
 
-1. mail-listener-list-messages
+1. mail-listener-list-emails
 2. mail-listener-get-email
 3. mail-listener-get-email-as-eml
-### 1. mail-listener-list-messages
+### 1. mail-listener-list-emails
 ***
 Fetches mails according to the configuration
 
 
 #### Base Command
 
-`mail-listener-list-messages`
+`mail-listener-list-emails`
 #### Input
 
 There are no input arguments for this command.
@@ -58,7 +58,7 @@ There are no input arguments for this command.
 
 
 #### Command Example
-```!mail-listener-list-messages```
+```!mail-listener-list-emails```
 
 #### Context Example
 ```
@@ -96,7 +96,7 @@ Fetches an email by email ID
 
 | **Argument Name** | **Description** | **Required** |
 | --- | --- | --- |
-| message-id | Message ID as fetched in 'mail-listener-list-messages' command | Required | 
+| message-id | Message ID as fetched in 'mail-listener-list-emails' command | Required | 
 
 
 #### Context Output
@@ -135,7 +135,7 @@ Fetches an email by email ID
                 "From": "test@demistodev.com",
                 "Message-ID": "<5f33cedf.1c69fb81.e5562.38a5@mx.google.com>",
                 "Mime-Version": "1.0",
-                "Received": "from localhost (13.100.68.34.bc.googleusercontent.com. [34.68.100.13])\r\n        by smtp.gmail.com with ESMTPSA id t5sm917197ilp.15.2020.08.12.04.13.35\r\n        for <test@demistodev.com>\r\n        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);\r\n        Wed, 12 Aug 2020 04:13:35 -0700 (PDT)",
+                "Received": "from localhost (13.100.68.34.bc.googleusercontent.com. [192.0.0.1])\r\n        by smtp.gmail.com with ESMTPSA id t5sm917197ilp.15.2020.08.12.04.13.35\r\n        for <test@demistodev.com>\r\n        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);\r\n        Wed, 12 Aug 2020 04:13:35 -0700 (PDT)",
                 "Return-Path": "<test@demistodev.com>",
                 "Subject": "foooSubject",
                 "To": "test@demistodev.com",
@@ -169,7 +169,7 @@ Fetches an email by message ID and download it's eml file
 
 | **Argument Name** | **Description** | **Required** |
 | --- | --- | --- |
-| message-id | Message ID as fetched in 'mail-listener-list-messages' command | Required | 
+| message-id | Message ID as fetched in 'mail-listener-list-emails' command | Required | 
 
 
 #### Context Output
@@ -197,7 +197,3 @@ There is no context output for this command.
     }
 }
 ```
-
-#### Human Readable Output
-
-

@@ -1,12 +1,6 @@
 from datetime import datetime, timezone
 
 
-class Message(object):
-    @staticmethod
-    def get_content_type():
-        return 'multipart/alternative'
-
-
 MAIL_STRING = """Delivered-To: to@test1.com
 MIME-Version: 1.0
 From: John Smith <from@test1.com>
@@ -46,6 +40,16 @@ EXPECTED_LABELS = [
 
 
 def test_convert_to_incident():
+    """
+    Given:
+        - Bytes representation of a mail
+
+        When:
+        - Parsing it to incidents
+
+        Then:
+        - Validate the 'attachments', 'occurred', 'details' and 'name' fields are parsed as expected
+    """
     from MailListenerV2 import Email
     email = Email(MAIL_STRING.encode(), False, False, 0)
     incident = email.convert_to_incident()
@@ -56,6 +60,20 @@ def test_convert_to_incident():
 
 
 def test_generate_search_query():
+    """
+    Given:
+        - The date from which mails should be queried
+        - A list of email addresses from which mails should be queried
+        - A list of domains from which mails should be queried
+
+        When:
+        - Generating search query from these arguments
+
+        Then:
+    - Validate the search query as enough 'OR's in the beginning (Σ(from n=0 to (len(addresses) + len(domains))) s^(n-1))
+    - Validate the search query has FROM before each address or domain
+    - Validate query has SINCE before the datetime object
+    """
     from MailListenerV2 import generate_search_query
     now = datetime.now(timezone.utc)
     permitted_from_addresses = ['test1@mail.com', 'test2@mail.com']
@@ -76,8 +94,18 @@ def test_generate_search_query():
 
 
 def test_generate_labels():
+    """
+        Given:
+        - Bytes representation of a mail
+
+        When:
+        - Generating mail labels
+
+        Then:
+        - Validate all expected labels are in the generated labels
+    """
     from MailListenerV2 import Email
     email = Email(MAIL_STRING.encode(), False, False, 0)
     labels = email._generate_labels()
     for label in EXPECTED_LABELS:
-        assert label in labels
+        assert label in labels, f'Label {label} was not found in the generated labels, {labels}'
